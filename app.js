@@ -621,21 +621,24 @@
     const entryNum = nextTarget.stepIndex;
     const primaryMsg = `${entryNum}. Eintragung von ${participant.password} erfolgreich`;
     const secondaryMsg = state.settings.classicMessages
-      ? `${participant.password}, bitte setz dich an den Tisch und geh spielen!`
+      ? `${participant.password}, Superduper - setz dich nun wieder an den Tisch und geh spielen!`
       : `Danke ${participant.name}! Deine ${entryNum}. Schätzung wurde gespeichert.`;
 
     const lastManMessages =
       allFinished && state.settings.lastManStandingEasterEgg
         ? [
-            'Du warst der LETZTE!',
-            'Schon gewusst? Derinderinderinderin',
+            'Du warst der LETZTE! HEURIKAAAAA!',
             'Jawoll der aller LETZTE!',
             'Der LETZTE der LETZTEN!',
             'Sieh es ein, das war ES!',
+            'Schon gewusst? Derinderinderinderin',
             'Fang schonmal an zu Putzen!',
             'Putzen ist so geil!',
             'Putzen ist so schön!',
-            'Du warst der LETZTE!'
+            'Du warst der LETZTE!',
+            'Damian putzt gerne Füdlis!',
+            'Putzen ist doch toll! Ne?',
+            'DIE LETZTE SCHÄTZUNG WURDE ABGEGEBEN - DAS BUNKERWEEKEND IST NUN VORBEI (leider)'
           ]
         : [];
 

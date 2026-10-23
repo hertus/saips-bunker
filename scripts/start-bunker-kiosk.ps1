@@ -32,6 +32,7 @@ $edgePaths = @(
   "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe"
 )
 $chromePaths = @(
+  "${env:LocalAppdata}\Chromium\Application\chrome.exe",
   "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
   "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
 )
