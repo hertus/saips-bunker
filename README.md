@@ -100,30 +100,62 @@ Für den Einsatz auf dem Bunker-Laptop stehen zwei Starter bereit:
 
 ---
 
-## Architektur & Datenhaltung
+## Architektur & Datenhaltung (Dual-Store & Crash-Recovery)
 
-Die Anwendung benötigt keine Serverprozesse und keine externen Bibliotheken:
+Die Anwendung benötigt keine Serverprozesse, keine externen Bibliotheken und ist dank einer mehrstufigen Speicherarchitektur gegen Stromausfälle und Systemabstürze abgesichert:
 
 ```mermaid
-flowchart LR
-    subgraph Client["Browser (file:///.../index.html)"]
-        Kiosk["Kiosk-Terminal\n(Vollbild, Focus-Trap)"]
-        Admin["Admin-Dashboard\n(Rangliste, Matrix, CRUD)"]
-        Engine["Berechnungs-Engine\n(Differenzen, Multiplikatoren)"]
-        LS[("LocalStorage\nsaips_bunker_db_v1")]
+flowchart TD
+    subgraph Kiosk["Kiosk Terminal (Teilnehmer tippt Kennwort)"]
+        Submit["Tastendruck / Enter\n(Systemzeit new Date())"]
     end
 
-    Disk[("Lokale Festplatte\n(JSON Export / Import &\nFile System Access API)")]
+    subgraph DualStore["Browser-interner Dual-Store"]
+        LS[("1. LocalStorage (Synchron)\nsaips_bunker_db_v1")]
+        IDB[("2. IndexedDB Mirror (Asynchron)\nsaips_bunker_idb")]
+    end
 
-    Kiosk -- "Kennwort + Enter" --> Engine
-    Admin <--> Engine
-    Engine <--> LS
-    Engine -. "Live-Sync & Export" .-> Disk
+    subgraph DiskBackup["Physische Festplatte (Persistente Sicherung)"]
+        LiveFile[("3. File System Access API\ndata/bunker-live-backup.json\n(Direkter Disk-Write bei jedem Eintrag)")]
+        ExportJSON[("4. Manueller JSON-Export\n(*_export.json Download)")]
+    end
+
+    Submit --> LS
+    Submit --> IDB
+    Submit --> LiveFile
+    LiveFile -. "Persistiertes Handle via IDB" .-> Kiosk
 ```
 
-1. **Primärspeicher:** `localStorage` unter dem Schlüssel `saips_bunker_db_v1`. Alle Aktionen werden sofort und synchron auf die Festplatte geschrieben.
-2. **Eingebettete Referenz:** Der vollständige 2024er Datensatz ist direkt in `app.js` eingebettet, sodass die App beim ersten Öffnen über `file://` ohne `fetch()`-Aufrufe sofort einsatzbereit ist.
-3. **Chromium File System Access:** Ermöglicht das automatische Schreiben in eine verknüpfte `.json`-Datei bei jedem Tastendruck.
+### Die 4 Persistenz-Schichten im Detail:
+
+1. **Schicht 1 – Synchroner `localStorage`:**
+   - Jede Eingabe und Änderung wird synchron unter `saips_bunker_db_v1` in die browserinterne LevelDB geschrieben.
+   - Übersteht normales Schliessen des Browsers und System-Neustarts.
+2. **Schicht 2 – Asynchroner `IndexedDB`-Spiegel:**
+   - Parallel wird der komplette State in die browserinterne IndexedDB (`saips_bunker_idb`) gespiegelt.
+   - **Crash-Recovery:** Sollte der Laptop während eines Schreibvorgangs hart abstürzen und der `localStorage` beschädigt sein, erkennt `app.js` beim nächsten Start automatisch den intakten Stand in IndexedDB und stellt ihn wieder her.
+3. **Schicht 3 – Live-Datei-Spiegelung (Chromium File System Access API):**
+   - Im Adminbereich unter *«⚙ JSON Import/Export & Kiosk-Schutz»* kann mit einem Klick eine lokale Datei verknüpft werden (z. B. `data/bunker-live-backup.json`).
+   - **Persistiertes Dateihandle:** Der Browser merkt sich das Dateihandle dauerhaft in IndexedDB.
+   - **Echter Disk-Write:** Bei jedem einzelnen Schätzungs-Eintrag (sowie alle 5 Minuten per Intervall) wird die komplette JSON-Datei auf die Laptop-Festplatte geschrieben. Selbst wenn der Laptop 10 Sekunden später ausgeht, liegt eine lesbare, aktuelle JSON-Datei auf der SSD.
+4. **Schicht 4 – Manueller JSON Export / Import:**
+   - 1-Klick-Download eines vollständigen Backups zur Weitergabe oder Archivierung auf einem USB-Stick.
+
+---
+
+## Empfohlener Ablauf vor Bunker-Start
+
+1. **Laptop vorbereiten:**
+   - `start-bunker-kiosk.bat` (oder `start-bunker-kiosk-hardlock.bat`) ausführen.
+2. **Admin-Bereich öffnen:**
+   - Im Kiosk-Feld `Admin1234` eingeben und `Enter` drücken.
+3. **Backup-Datei verknüpfen (einmalig):**
+   - In den Reiter *«⚙ JSON Import/Export & Kiosk-Schutz»* wechseln.
+   - Auf **«📁 Lokale Backup-Datei verknüpfen»** klicken und `data/bunker-live-backup.json` wählen.
+   - Der Status springt auf grün: *Aktiv (Jeder Eintrag wird sofort auf die Festplatte gespiegelt)*.
+4. **Event vorbereiten:**
+   - Auf *«Alle Schätzungen löschen»* klicken, Soll-Zeiten prüfen und oben rechts auf **«🔒 Zurück in Kiosk-Modus»** klicken.
+   - Ab jetzt läuft der Kiosk vollautomatisch und ausfallsicher.
 
 ---
 

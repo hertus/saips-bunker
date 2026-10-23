@@ -93,48 +93,226 @@
   };
 
   // =========================================================================
-  // STATE MANAGEMENT & LOCAL STORAGE PERSISTENCE
+  // STATE MANAGEMENT, DUAL PERSISTENCE (LocalStorage + IndexedDB) & FILE-SYNC
   // =========================================================================
+  const IDB_NAME = 'saips_bunker_idb';
+  const IDB_VERSION = 1;
+  const IDB_STORE_STATE = 'state_store';
+  const IDB_STORE_HANDLES = 'file_handles';
+
   let state = null;
   let mode = 'kiosk'; // 'kiosk' | 'admin'
   let modalQueue = [];
   let modalAutoCloseTimer = null;
   let wakeLockSentinel = null;
   let liveBackupFileHandle = null;
+  let lastSyncIso = null;
 
-  function loadState() {
+  // IndexedDB Promise Helper
+  function openDatabase() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        return resolve(null);
+      }
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE_STATE)) {
+          db.createObjectStore(IDB_STORE_STATE);
+        }
+        if (!db.objectStoreNames.contains(IDB_STORE_HANDLES)) {
+          db.createObjectStore(IDB_STORE_HANDLES);
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function idbGet(storeName, key) {
+    try {
+      const db = await openDatabase();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const req = tx.objectStore(storeName).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function idbSet(storeName, key, value) {
+    try {
+      const db = await openDatabase();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const req = tx.objectStore(storeName).put(value, key);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  async function idbDelete(storeName, key) {
+    try {
+      const db = await openDatabase();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const req = tx.objectStore(storeName).delete(key);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  // Crash-Resilient Dual Load (LocalStorage + IndexedDB Fallback)
+  async function loadStateWithRecovery() {
+    let lsState = null;
+    let idbState = null;
+
+    // 1. Try LocalStorage
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        state = JSON.parse(raw);
-        state.settings = { ...SEED_2024.settings, ...(state.settings || {}) };
-        return;
+        lsState = JSON.parse(raw);
       }
     } catch (err) {
-      console.warn('LocalStorage load error, fallback to SEED_2024:', err);
+      console.warn('LocalStorage parse error:', err);
     }
-    state = JSON.parse(JSON.stringify(SEED_2024));
+
+    // 2. Try IndexedDB Mirror
+    try {
+      idbState = await idbGet(IDB_STORE_STATE, 'latest_state');
+    } catch (err) {
+      console.warn('IndexedDB read error:', err);
+    }
+
+    // 3. Choose the most complete state (Crash recovery)
+    if (lsState && idbState) {
+      const lsCount = (lsState.estimations || []).length;
+      const idbCount = (idbState.estimations || []).length;
+      if (idbCount > lsCount) {
+        console.warn('Crash recovery: IndexedDB hat mehr Einträge als LocalStorage. Stelle aus IndexedDB wieder her.');
+        state = idbState;
+      } else {
+        state = lsState;
+      }
+    } else if (lsState) {
+      state = lsState;
+    } else if (idbState) {
+      console.warn('Crash recovery: LocalStorage war leer, stelle aus IndexedDB wieder her.');
+      state = idbState;
+    } else {
+      // First boot: Initial Seed
+      state = JSON.parse(JSON.stringify(SEED_2024));
+    }
+
+    state.settings = { ...SEED_2024.settings, ...(state.settings || {}) };
     saveState();
+
+    // 4. Try to restore persisted FileSystemFileHandle
+    await restorePersistedFileHandle();
   }
 
   function saveState() {
+    // 1. Synchronous write to LocalStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (err) {
-      console.error('LocalStorage save error:', err);
+      console.error('LocalStorage write error:', err);
     }
+
+    // 2. Asynchronous mirror write to IndexedDB
+    idbSet(IDB_STORE_STATE, 'latest_state', state);
+
+    // 3. Asynchronous write to live physical backup file (if linked)
     syncToLinkedFile();
   }
 
   async function syncToLinkedFile() {
     if (!liveBackupFileHandle) return;
     try {
+      // Verify permission if needed
+      const hasPermission = await verifyPermission(liveBackupFileHandle, true);
+      if (!hasPermission) {
+        updateFileStatusUI(false, `Berechtigung für ${liveBackupFileHandle.name} erforderlich`);
+        return;
+      }
+
       const writable = await liveBackupFileHandle.createWritable();
       const payload = exportPayload();
       await writable.write(JSON.stringify(payload, null, 2));
       await writable.close();
+
+      lastSyncIso = toLocalIsoString(new Date());
+      updateFileStatusUI(true, `Aktiv: ${liveBackupFileHandle.name}`);
     } catch (err) {
-      console.warn('Live file sync error:', err);
+      console.warn('Live file sync warning:', err);
+      updateFileStatusUI(false, `Fehler: ${err.message}`);
+    }
+  }
+
+  async function verifyPermission(fileHandle, readWrite = true) {
+    const options = {};
+    if (readWrite) {
+      options.mode = 'readwrite';
+    }
+    if ((await fileHandle.queryPermission(options)) === 'granted') {
+      return true;
+    }
+    if ((await fileHandle.requestPermission(options)) === 'granted') {
+      return true;
+    }
+    return false;
+  }
+
+  async function restorePersistedFileHandle() {
+    try {
+      const handle = await idbGet(IDB_STORE_HANDLES, 'live_backup_handle');
+      if (handle && handle.kind === 'file') {
+        liveBackupFileHandle = handle;
+        const granted = (await handle.queryPermission({ mode: 'readwrite' })) === 'granted';
+        if (granted) {
+          updateFileStatusUI(true, `Automatisch verbunden: ${handle.name}`);
+          await syncToLinkedFile();
+        } else {
+          updateFileStatusUI(false, `Wiederhergestellt: ${handle.name} (Klicke auf Button um Berechtigung zu bestätigen)`);
+        }
+      } else {
+        updateFileStatusUI(false, 'Nicht verknüpft (Aktiv: LocalStorage + IndexedDB Dual-Store)');
+      }
+    } catch (err) {
+      console.warn('File handle restore warning:', err);
+      updateFileStatusUI(false, 'Nicht verknüpft (Aktiv: LocalStorage + IndexedDB Dual-Store)');
+    }
+  }
+
+  function updateFileStatusUI(isActive, message) {
+    const statusEl = document.getElementById('live-file-status');
+    const timeEl = document.getElementById('last-backup-time');
+    const unlinkBtn = document.getElementById('btn-unlink-live-file');
+
+    if (statusEl) {
+      statusEl.innerHTML = isActive
+        ? `Status: <span style="color:var(--success)">● <strong>${escapeHtml(message)}</strong> (Jeder Eintrag wird sofort auf die Festplatte gespiegelt)</span>`
+        : `Status: <span style="color:var(--warning)">○ ${escapeHtml(message)}</span>`;
+    }
+
+    if (timeEl && lastSyncIso) {
+      timeEl.textContent = `Letzter Disk-Sync: ${formatDisplayDateTime(lastSyncIso)}`;
+    }
+
+    if (unlinkBtn) {
+      unlinkBtn.classList.toggle('hidden', !liveBackupFileHandle);
     }
   }
 
@@ -1339,19 +1517,29 @@
     alert('Einstellungen gespeichert!');
   });
 
-  // File System Access API (Live File Sync)
+  // File System Access API (Live File Sync & Handle Persistence)
   document.getElementById('btn-link-live-file').addEventListener('click', async () => {
     if (!('showSaveFilePicker' in window)) {
       alert('Die File System Access API wird von diesem Browser nicht unterstützt. Verwende Microsoft Edge oder Google Chrome.');
       return;
     }
     try {
+      if (liveBackupFileHandle) {
+        const granted = await verifyPermission(liveBackupFileHandle, true);
+        if (granted) {
+          await syncToLinkedFile();
+          alert(`Berechtigung für "${liveBackupFileHandle.name}" bestätigt! Live-Spiegelung ist aktiv.`);
+          return;
+        }
+      }
+
       liveBackupFileHandle = await window.showSaveFilePicker({
         suggestedName: 'bunker-live-backup.json',
         types: [{ description: 'JSON Datei', accept: { 'application/json': ['.json'] } }]
       });
-      document.getElementById('live-file-status').innerHTML =
-        `Status: <span style="color:var(--success)">Verknüpft mit <strong>${escapeHtml(liveBackupFileHandle.name)}</strong> (Automatische Synchronisation aktiv)</span>`;
+
+      // Persist handle in IndexedDB across restarts
+      await idbSet(IDB_STORE_HANDLES, 'live_backup_handle', liveBackupFileHandle);
       await syncToLinkedFile();
       alert(`Auto-Backup-Datei "${liveBackupFileHandle.name}" erfolgreich verknüpft! Jeder Eintrag wird ab jetzt sofort auf die Festplatte gespiegelt.`);
     } catch (err) {
@@ -1359,6 +1547,14 @@
         alert('Fehler beim Verknüpfen der Datei: ' + err.message);
       }
     }
+  });
+
+  document.getElementById('btn-unlink-live-file').addEventListener('click', async () => {
+    if (!confirm('Verknüpfung zur Backup-Datei wirklich aufheben?')) return;
+    liveBackupFileHandle = null;
+    await idbDelete(IDB_STORE_HANDLES, 'live_backup_handle');
+    updateFileStatusUI(false, 'Nicht verknüpft (Aktiv: LocalStorage + IndexedDB Dual-Store)');
+    alert('Verknüpfung wurde aufgehoben.');
   });
 
   // Export & Import JSON
@@ -1449,12 +1645,19 @@
   });
 
   // =========================================================================
-  // INITIALIZATION
+  // INITIALIZATION (Async Dual-Store & File Handle Recovery)
   // =========================================================================
-  loadState();
-  requestWakeLock();
-  updateKioskUI();
-  focusKioskInput();
+  (async function init() {
+    await loadStateWithRecovery();
+    requestWakeLock();
+    updateKioskUI();
+    focusKioskInput();
+
+    // Periodic Background Disk Sync (every 5 minutes)
+    setInterval(() => {
+      syncToLinkedFile();
+    }, 5 * 60 * 1000);
+  })();
 
 })();
 

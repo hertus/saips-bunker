@@ -304,15 +304,23 @@
               </button>
 
               <div class="import-box">
-                <h4>Optionale Live-Datei-Verknüpfung (Chromium File System Access API)</h4>
+                <h4>Ausfallsichere Live-Datei-Verknüpfung (Chromium File System Access API)</h4>
                 <p class="help-text" style="margin-bottom:8px;">
-                  Verknüpfe vor dem Bunker-Start eine lokale Datei (z. B. <code>bunker-live.json</code>). Jede Schätzung wird dann zusätzlich sofort direkt in diese Datei auf der Festplatte geschrieben.
+                  Verknüpfe vor dem Bunker-Start eine lokale Datei (z. B. <code>data/bunker-live-backup.json</code>). Jede Schätzung wird sofort per Disk-Write in diese Datei gespiegelt und das Dateihandle wird dauerhaft in IndexedDB gemerkt.
                 </p>
-                <button type="button" id="btn-link-live-file" class="btn btn-secondary">
-                  📁 Lokale Auto-Backup-Datei verknüpfen
-                </button>
-                <div id="live-file-status" class="mono" style="font-size:0.85rem; color:var(--text-muted);">
-                  Status: Nicht verknüpft (primär aktiv: LocalStorage)
+                <div class="btn-row" style="margin-bottom:6px;">
+                  <button type="button" id="btn-link-live-file" class="btn btn-secondary">
+                    📁 Lokale Backup-Datei verknüpfen / Berechtigung erneuern
+                  </button>
+                  <button type="button" id="btn-unlink-live-file" class="btn btn-danger btn-sm hidden">
+                    Verknüpfung trennen
+                  </button>
+                </div>
+                <div id="live-file-status" class="mono" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
+                  Status: Nicht verknüpft (Aktiv: LocalStorage + IndexedDB Dual-Store)
+                </div>
+                <div id="last-backup-time" class="mono" style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">
+                  Letzter Disk-Sync: Noch keiner
                 </div>
               </div>
 

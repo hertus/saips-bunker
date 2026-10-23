@@ -60,15 +60,18 @@ Für jeden Teilnehmer $p$ und Schätzrunde $i \in \{1 \dots N\}$ mit Sollzeit $\
 
 ---
 
-## 3. Architektur: Serverless Single-File / Static Web-App
+## 3. Architektur: Serverless Dual-Store mit Crash-Recovery & Disk-Sync
 
-- **Vollständig serverlos:** Reines HTML5, CSS3 und Vanilla JavaScript.
-- **Direkt ausführbar über `file://`:** Funktioniert per Doppelklick auf `index.html` in jedem Browser ohne Node.js, Webserver oder externe Internetverbindung.
-- **Null CORS-Probleme:** Der 2024er Excel-Datensatz (`SEED_2024`) ist direkt als Konstante in `app.js` eingebettet – es werden im Kiosk keine blockierenden `fetch()`-Aufrufe getätigt.
-- **Dreistufige Persistenz:**
-  1. **Synchrones `localStorage`:** Unter dem Schlüssel `saips_bunker_db_v1` sofort synchron auf die Festplatte geschrieben.
-  2. **Live-Datei-Sync (File System Access API):** Im Adminbereich kann eine Datei (z. B. `bunker-live.json`) verknüpft werden, in die jeder Eintrag sofort gespiegelt wird.
-  3. **JSON Import/Export:** Herunterladen und Hochladen kompletter JSON-Backups.
+- **Vollständig serverlos:** Reines HTML5, CSS3 und Vanilla JavaScript ohne Node.js oder Webserver.
+- **Direkt ausführbar über `file://`:** Doppelklick auf `index.html` genügt in jedem modernen Chromium-Browser oder Firefox.
+- **4-Stufen-Persistenz & Crash-Resilienz:**
+  1. **Synchroner `localStorage` (`saips_bunker_db_v1`):** Synchrones Schreiben bei jedem Tastendruck/Eintrag in die browserinterne LevelDB.
+  2. **Asynchroner `IndexedDB`-Spiegel (`saips_bunker_idb`):** Zweite, unabhängige Browser-Datenbank. Erkennt beim Systemstart nach einem unsauberen Computerabsturz eventuell unvollständige `localStorage`-Stände und stellt den konsistenten Stand wieder her.
+  3. **Persistentes Live-Datei-Backup (Chromium File System Access API):**
+     - Einmalige Verknüpfung einer lokalen JSON-Datei (z. B. `data/bunker-live-backup.json`).
+     - Das Handle wird in IndexedDB persistiert und übersteht Browser-Neustarts.
+     - Jeder Schätzungseintrag sowie ein 5-Minuten-Intervall schreiben die Daten physisch direkt auf die Festplatte.
+  4. **Manueller JSON-Export & Import:** 1-Klick-Sicherung zur Archivierung auf einem USB-Stick.
 
 ---
 
