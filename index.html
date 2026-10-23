@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BunkerWeekend – Zeitschätzung</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="kiosk-active">
+  <!-- ===================================================================== -->
+  <!-- KIOSK VIEW (BUNKER TERMINAL)                                          -->
+  <!-- ===================================================================== -->
+  <main id="kiosk-view" class="kiosk-screen">
+    <div class="kiosk-backdrop"></div>
+
+    <section class="kiosk-card" aria-label="Zeitschätzung Eingabe">
+      <div class="kiosk-banner-wrap">
+        <img src="./assets/bunker-bg.jpg" alt="das saips BUNKERweekend" class="kiosk-banner-img" draggable="false" />
+        <div class="kiosk-banner-vignette"></div>
+      </div>
+
+      <form id="kiosk-form" class="kiosk-form" autocomplete="off" spellcheck="false">
+        <label for="kiosk-input" class="kiosk-label">Name / Kennwort:</label>
+        <div class="kiosk-input-row">
+          <input
+            id="kiosk-input"
+            type="text"
+            class="kiosk-input"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            maxlength="40"
+            placeholder="Kennwort eingeben..."
+            autofocus
+          />
+          <button type="submit" id="kiosk-submit-btn" class="kiosk-submit-btn">
+            Eintragen
+          </button>
+        </div>
+        <p id="kiosk-locked-banner" class="kiosk-locked-banner hidden">
+          Alle Schätzungen sind abgeschlossen!
+        </p>
+      </form>
+    </section>
+
+    <!-- Feedback Modal (VBA MsgBox Replacement without any clock/time info) -->
+    <div id="kiosk-modal" class="kiosk-modal hidden" role="dialog" aria-modal="true">
+      <div class="kiosk-modal-box" id="kiosk-modal-box">
+        <div class="kiosk-modal-header" id="kiosk-modal-header">BunkerWeekend</div>
+        <div class="kiosk-modal-body">
+          <p id="kiosk-modal-primary" class="kiosk-modal-primary"></p>
+          <p id="kiosk-modal-secondary" class="kiosk-modal-secondary"></p>
+        </div>
+        <div class="kiosk-modal-footer">
+          <button type="button" id="kiosk-modal-ok" class="kiosk-modal-btn">OK (Enter)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subtle fullscreen helper if browser exited fullscreen -->
+    <button type="button" id="kiosk-fullscreen-pill" class="kiosk-fullscreen-pill hidden" title="Vollbild aktivieren">
+      ⛶ Vollbild aktivieren
+    </button>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- ADMIN VIEW (PASSWORD PROTECTED)                                       -->
+  <!-- ===================================================================== -->
+  <section id="admin-view" class="admin-screen hidden">
+    <header class="admin-header">
+      <div class="admin-brand">
+        <img src="./assets/bunker-bg.jpg" alt="Bunker" class="admin-brand-thumb" />
+        <div>
+          <h1 id="admin-title">SAIPS BunkerWeekend – Administration & Auswertung</h1>
+          <p class="admin-subtitle" id="admin-summary-line">Lade Daten...</p>
+        </div>
+      </div>
+      <div class="admin-header-actions">
+        <button type="button" id="btn-export-json-top" class="btn btn-secondary">
+          ⬇ JSON Export
+        </button>
+        <button type="button" id="btn-return-kiosk" class="btn btn-primary">
+          🔒 Zurück in Kiosk-Modus (Vollbild)
+        </button>
+      </div>
+    </header>
+
+    <nav class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab active" data-tab="tab-overview">
+        🏆 Gesamtauswertung (Alle)
+      </button>
+      <button type="button" class="admin-tab" data-tab="tab-details">
+        📋 Teilnehmer-Details (Einzelblätter)
+      </button>
+      <button type="button" class="admin-tab" data-tab="tab-targets">
+        🎯 Soll-Zeiten & Multiplikator
+      </button>
+      <button type="button" class="admin-tab" data-tab="tab-participants">
+        🔑 Teilnehmer & Kennwörter
+      </button>
+      <button type="button" class="admin-tab" data-tab="tab-system">
+        ⚙ JSON Import/Export & Kiosk-Schutz
+      </button>
+    </nav>
+
+    <div class="admin-content">
+      <!-- TAB 1: GESAMTAUSWERTUNG (ALLE) -->
+      <section id="tab-overview" class="tab-panel active">
+        <div id="podium-container" class="podium-grid"></div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Rangliste – Gesamtabweichung (Blatt «Alle»)</h2>
+            <span class="badge">Sortiert nach «Daneben inkl. Multi» (aufsteigend)</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="ranking-table">
+              <thead>
+                <tr>
+                  <th>Rang</th>
+                  <th>Teilnehmer</th>
+                  <th>Status / Fortschritt</th>
+                  <th>Daneben inkl. Multi (HH:MM:SS)</th>
+                  <th>Daneben ohne Multi (HH:MM:SS)</th>
+                  <th>Ø Abweichung / Schätzung</th>
+                  <th>Excel-Dezimalwert (inkl. Multi)</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Abweichungsverlauf pro Schätzung & Teilnehmer</h2>
+            <span class="badge">Grafischer Vergleich (in Minuten)</span>
+          </div>
+          <div id="chart-container" class="chart-container"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Differenzen-Matrix (Alle Soll-Zeiten × Teilnehmer)</h2>
+            <span class="badge">Grün = Beste Schätzung der Runde | Früh (0) vs. Spät (1)</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table matrix-table" id="matrix-table">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: TEILNEHMER-DETAILS (EINZELBLÄTTER) -->
+      <section id="tab-details" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <div class="filter-bar">
+              <label for="detail-participant-select"><strong>Teilnehmer wählen:</strong></label>
+              <select id="detail-participant-select" class="input-select"></select>
+            </div>
+            <button type="button" id="btn-open-manual-est" class="btn btn-secondary">
+              + Schätzung manuell eintragen / korrigieren
+            </button>
+          </div>
+          <div id="participant-sheets-container"></div>
+        </div>
+      </section>
+
+      <!-- TAB 3: SOLL-ZEITEN (SOLL) -->
+      <section id="tab-targets" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>Zu tätigende Schätzungen (Blatt «Soll»)</h2>
+            <span class="badge">Exaktes Datum, Uhrzeit (Sekundengenau) & Multiplikator</span>
+          </div>
+          <p class="help-text">
+            Jede Zeile definiert einen Schätz-Zeitpunkt im Bunker. Wenn ein Teilnehmer im Kiosk sein Kennwort eingibt, wird seine Eingabe automatisch der nächsten offenen Schätz-Nummer (1, 2, 3, …) zugeordnet.
+          </p>
+          <div class="table-responsive">
+            <table class="data-table" id="targets-table">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Bezeichnung</th>
+                  <th>Soll-Datum & Uhrzeit</th>
+                  <th>Multiplikator</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <form id="target-form" class="inline-form">
+            <h3 id="target-form-title">Neue Soll-Zeit hinzufügen</h3>
+            <input type="hidden" id="target-id" />
+            <div class="form-grid">
+              <div>
+                <label>Schätz-Nr. (Index)</label>
+                <input type="number" id="target-step" class="input-field" min="1" required />
+              </div>
+              <div>
+                <label>Bezeichnung</label>
+                <input type="text" id="target-label" class="input-field" placeholder="z. B. 1. Schätzung (Fr 12:00)" required />
+              </div>
+              <div>
+                <label>Exaktes Datum & Uhrzeit</label>
+                <input type="datetime-local" id="target-datetime" class="input-field" step="1" required />
+              </div>
+              <div>
+                <label>Multiplikator</label>
+                <input type="number" id="target-multiplier" class="input-field" step="0.05" min="0.1" value="1.0" required />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Soll-Zeit speichern</button>
+              <button type="button" id="target-form-cancel" class="btn btn-secondary hidden">Abbrechen</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 4: TEILNEHMER & KENNWÖRTER -->
+      <section id="tab-participants" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>Teilnehmer & Kennwörter verwalten</h2>
+            <div class="header-btn-group">
+              <button type="button" id="btn-copy-passwords" class="btn btn-secondary">
+                📋 Kennwort-Liste kopieren
+              </button>
+            </div>
+          </div>
+          <p class="help-text">
+            Jeder Teilnehmer erhält ausschliesslich ein persönliches Kennwort (z. B. <code>Reto1234</code> oder <code>Damian1572</code>) ohne separaten Benutzernamen.
+          </p>
+
+          <div class="table-responsive">
+            <table class="data-table" id="participants-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Kennwort (für Kiosk-Eingabe)</th>
+                  <th>Status</th>
+                  <th>Abgegebene Schätzungen</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <form id="participant-form" class="inline-form">
+            <h3 id="participant-form-title">Neuen Teilnehmer anlegen</h3>
+            <input type="hidden" id="participant-id" />
+            <div class="form-grid">
+              <div>
+                <label>Name des Teilnehmers</label>
+                <input type="text" id="participant-name" class="input-field" placeholder="z. B. Reto" required />
+              </div>
+              <div>
+                <label>Kennwort (ohne Username)</label>
+                <div class="input-with-btn">
+                  <input type="text" id="participant-password" class="input-field" placeholder="z. B. Reto1234" required />
+                  <button type="button" id="btn-gen-password" class="btn btn-secondary" title="Name + 4 Zufallsziffern generieren">
+                    🎲 Generieren
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label>Status</label>
+                <select id="participant-active" class="input-select">
+                  <option value="true">Aktiv (nimmt teil)</option>
+                  <option value="false">Reserve / Inaktiv (wie Zusatz)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Teilnehmer speichern</button>
+              <button type="button" id="participant-form-cancel" class="btn btn-secondary hidden">Abbrechen</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 5: SYSTEM, JSON IMPORT/EXPORT & KIOSK-SCHUTZ -->
+      <section id="tab-system" class="tab-panel hidden">
+        <div class="grid-2col">
+          <div class="card">
+            <div class="card-header">
+              <h2>JSON Import & Export / Datensätze</h2>
+            </div>
+            <p class="help-text">
+              Sichere den gesamten Stand (Teilnehmer, Soll-Zeiten, abgegebene Schätzungen und Auswertung) als JSON-Datei oder lade einen gespeicherten Stand.
+            </p>
+            <div class="stack-actions">
+              <button type="button" id="btn-export-json" class="btn btn-primary">
+                ⬇ Komplette Datenbank als JSON exportieren
+              </button>
+
+              <div class="import-box">
+                <h4>Optionale Live-Datei-Verknüpfung (Chromium File System Access API)</h4>
+                <p class="help-text" style="margin-bottom:8px;">
+                  Verknüpfe vor dem Bunker-Start eine lokale Datei (z. B. <code>bunker-live.json</code>). Jede Schätzung wird dann zusätzlich sofort direkt in diese Datei auf der Festplatte geschrieben.
+                </p>
+                <button type="button" id="btn-link-live-file" class="btn btn-secondary">
+                  📁 Lokale Auto-Backup-Datei verknüpfen
+                </button>
+                <div id="live-file-status" class="mono" style="font-size:0.85rem; color:var(--text-muted);">
+                  Status: Nicht verknüpft (primär aktiv: LocalStorage)
+                </div>
+              </div>
+
+              <div class="import-box">
+                <h4>JSON-Datei importieren</h4>
+                <input type="file" id="json-import-file" accept=".json,application/json" class="input-field" />
+                <label class="checkbox-label">
+                  <input type="checkbox" id="json-import-with-estimations" checked />
+                  Abgegebene Schätzungen aus JSON mitimportieren (deaktivieren, um nur Teilnehmer & Soll-Zeiten zu laden)
+                </label>
+                <button type="button" id="btn-import-json" class="btn btn-secondary">
+                  ⬆ Ausgewählte JSON-Datei importieren
+                </button>
+              </div>
+
+              <hr class="divider" />
+
+              <h4>Schnell-Aktionen für Event-Start & Test</h4>
+              <div class="btn-row">
+                <button type="button" id="btn-reset-estimations" class="btn btn-danger">
+                  🗑 Alle Schätzungen löschen (Bereit für Bunker-Start)
+                </button>
+                <button type="button" id="btn-restore-2024" class="btn btn-secondary">
+                  📂 Original 2024 XLS-Daten wiederherstellen
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Kiosk- & Admin-Einstellungen</h2>
+            </div>
+            <form id="settings-form" class="stack-form">
+              <div>
+                <label>Event-Titel</label>
+                <input type="text" id="setting-event-title" class="input-field" required />
+              </div>
+              <div>
+                <label>Admin-Kennwort (auch im Kiosk-Feld zum Entsperren gültig)</label>
+                <input type="text" id="setting-admin-password" class="input-field" placeholder="Standard: Admin1234" required />
+              </div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-classic-messages" />
+                Original-Sprüche aus dem 2024 Excel-Makro verwenden («Du bist ein faltscher Keib!», «bitte setz dich an den Tisch und geh spielen!»)
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-last-man" />
+                «Du warst der LETZTE! Putzen!»-Sequenz anzeigen, sobald alle Teilnehmer alle Schätzungen abgegeben haben
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-mask-input" />
+                Kennwort-Eingabe im Kiosk als Punkte (<code>••••</code>) maskieren
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-hide-cursor" />
+                Mauszeiger im Kiosk-Modus komplett ausblenden (reine Tastatureingabe mit Enter)
+              </label>
+              <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🛡️ Bunker Kiosk-Lockdown Konzept (Browser, Windows & Linux)</h2>
+            <span class="badge">Verhindert Verlassen der App & jegliche Zeitanzeige</span>
+          </div>
+          <div class="kiosk-guide-grid">
+            <div>
+              <h4>1. Integrierter Web-App Schutz (Aktiv)</h4>
+              <ul class="guide-list">
+                <li><strong>Null-Zeit-Architektur:</strong> Weder im DOM noch in Tooltips oder Headern wird eine Systemzeit angezeigt.</li>
+                <li><strong>Tastatur-Filter & Fokus-Trap:</strong> Das Eingabefeld hält permanent den Fokus. Tasten wie <code>F1–F12</code>, <code>Tab</code>, <code>Ctrl+W/T/N/U/R/P/S</code>, <code>Alt</code> und Rechtsklick werden abgefangen.</li>
+                <li><strong>Screen Wake Lock:</strong> Verhindert automatisch das Abdunkeln oder den Standby des Bildschirms.</li>
+                <li><strong>Versteckter Admin-Zugang:</strong> Gib einfach das Admin-Kennwort (z. B. <code>Admin1234</code>) direkt in das Kiosk-Eingabefeld ein, um in die Administration zu wechseln.</li>
+              </ul>
+            </div>
+            <div>
+              <h4>2. Kiosk-Starter für Windows & Linux</h4>
+              <ul class="guide-list">
+                <li><strong>Windows:</strong> Starte über <code>start-bunker-kiosk.bat</code> bzw. <code>start-bunker-kiosk-hardlock.bat</code> (beendet <code>explorer.exe</code> für die Kiosk-Dauer, sodass Taskleiste und Windows-Uhr nicht existieren).</li>
+                <li><strong>Linux:</strong> Starte über <code>./start-bunker-kiosk.sh</code> (bzw. <code>./scripts/start-bunker-kiosk.sh</code>). Deaktiviert Bildschirm-Timeout via <code>xset</code> und startet Chromium/Chrome/Firefox im nativen <code>--kiosk</code>-Modus direkt mit <code>file:///.../index.html</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal for manual estimation entry/correction in Admin -->
+    <div id="admin-est-modal" class="kiosk-modal hidden">
+      <div class="kiosk-modal-box admin-modal-box">
+        <div class="kiosk-modal-header">Schätzung manuell eintragen / bearbeiten</div>
+        <form id="admin-est-form" class="stack-form">
+          <div>
+            <label>Teilnehmer</label>
+            <select id="manual-est-participant" class="input-select" required></select>
+          </div>
+          <div>
+            <label>Schätzung Nr. (Soll-Zeit)</label>
+            <select id="manual-est-step" class="input-select" required></select>
+          </div>
+          <div>
+            <label>Geschätzter Zeitpunkt (Datum & Uhrzeit inkl. Sekunden)</label>
+            <input type="datetime-local" id="manual-est-time" class="input-field" step="1" required />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Speichern</button>
+            <button type="button" id="manual-est-cancel" class="btn btn-secondary">Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
