@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "eventName": "das saips BUNKERweekend",
-  "exportedAt": "2026-10-23T16:09:10",
+  "exportedAt": "2026-10-23T17:12:15",
   "settings": {
     "eventTitle": "das saips BUNKERweekend",
     "adminPassword": "Admin1234",
@@ -110,12 +110,6 @@
     }
   ],
   "estimations": [
-    {
-      "id": 1,
-      "participantId": 1,
-      "stepIndex": 1,
-      "estimatedTime": "2024-11-01T11:44:20"
-    },
     {
       "id": 2,
       "participantId": 1,
@@ -433,22 +427,6 @@
       },
       {
         "rank": 4,
-        "id": 1,
-        "name": "Damian",
-        "password": "Damian1572",
-        "active": true,
-        "completedCount": 5,
-        "totalTargets": 5,
-        "sumDiffSecWithMulti": 21256,
-        "sumDiffSecWithoutMulti": 21256,
-        "sumDiffWithMultiFormatted": "05:54:16",
-        "sumDiffWithoutMultiFormatted": "05:54:16",
-        "excelTotalWithMulti": 0.24601851851851853,
-        "excelTotalWithoutMulti": 0.24601851851851853,
-        "avgDiffFormatted": "01:10:51"
-      },
-      {
-        "rank": 5,
         "id": 6,
         "name": "Toni",
         "password": "Toni5839",
@@ -464,7 +442,7 @@
         "avgDiffFormatted": "01:11:11"
       },
       {
-        "rank": 6,
+        "rank": 5,
         "id": 4,
         "name": "David",
         "password": "David6710",
@@ -480,7 +458,7 @@
         "avgDiffFormatted": "01:14:45"
       },
       {
-        "rank": 7,
+        "rank": 6,
         "id": 5,
         "name": "Philipp",
         "password": "Philipp5422",
@@ -496,7 +474,7 @@
         "avgDiffFormatted": "01:23:06"
       },
       {
-        "rank": 8,
+        "rank": 7,
         "id": 2,
         "name": "MartinBu",
         "password": "MartinBu2569",
@@ -512,7 +490,7 @@
         "avgDiffFormatted": "01:25:04"
       },
       {
-        "rank": 9,
+        "rank": 8,
         "id": 3,
         "name": "Carlo",
         "password": "Carlo4329",
@@ -526,6 +504,22 @@
         "excelTotalWithMulti": 0.3010300925925926,
         "excelTotalWithoutMulti": 0.3010300925925926,
         "avgDiffFormatted": "01:26:42"
+      },
+      {
+        "rank": 9,
+        "id": 1,
+        "name": "Damian",
+        "password": "Damian1572",
+        "active": true,
+        "completedCount": 4,
+        "totalTargets": 5,
+        "sumDiffSecWithMulti": 20316,
+        "sumDiffSecWithoutMulti": 20316,
+        "sumDiffWithMultiFormatted": "05:38:36",
+        "sumDiffWithoutMultiFormatted": "05:38:36",
+        "excelTotalWithMulti": 0.2351388888888889,
+        "excelTotalWithoutMulti": 0.2351388888888889,
+        "avgDiffFormatted": "01:24:39"
       }
     ],
     "matrix": [
@@ -538,25 +532,25 @@
         "bestDiffSec": 742,
         "cells": {
           "Damian": {
-            "estimationId": 1,
+            "estimationId": null,
             "stepIndex": 1,
             "targetLabel": "1. Schätzung (Fr 12:00)",
-            "passwordEntered": "Damian1572",
-            "estimatedTime": "2024-11-01T11:44:20",
-            "estimatedDate": "2024-11-01",
-            "estimatedClock": "11:44:20",
+            "passwordEntered": null,
+            "estimatedTime": null,
+            "estimatedDate": null,
+            "estimatedClock": null,
             "targetTime": "2024-11-01T12:00:00",
-            "diffSeconds": 940,
-            "signedDiffSeconds": -940,
-            "diffFormatted": "00:15:40",
-            "signedDiffFormatted": "-00:15:40",
-            "tooLateFlag": 0,
-            "directionLabel": "Zu früh (0)",
+            "diffSeconds": null,
+            "signedDiffSeconds": null,
+            "diffFormatted": "—",
+            "signedDiffFormatted": "—",
+            "tooLateFlag": null,
+            "directionLabel": "Offen",
             "multiplier": 1,
-            "weightedDiffSeconds": 940,
-            "weightedDiffFormatted": "00:15:40",
-            "excelDecimalDays": 0.01087962962962963,
-            "completed": true
+            "weightedDiffSeconds": null,
+            "weightedDiffFormatted": "—",
+            "excelDecimalDays": null,
+            "completed": false
           },
           "MartinBu": {
             "estimationId": 6,

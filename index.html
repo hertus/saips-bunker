@@ -135,8 +135,30 @@
 
         <div class="card">
           <div class="card-header">
-            <h2>Abweichungsverlauf pro Schätzung & Teilnehmer</h2>
-            <span class="badge">Grafischer Vergleich (in Minuten)</span>
+            <h2>Abweichungsverlauf auf der Zeitachse (Liniengraph)</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="chart-type-toggle">
+                <button type="button" id="btn-chart-mode-signed" class="btn btn-secondary btn-sm active" title="Zeigt ob Schätzungen zu früh (-) oder zu spät (+) waren">
+                  Vorzeichenbehaftet (± Abweichung)
+                </button>
+                <button type="button" id="btn-chart-mode-abs" class="btn btn-secondary btn-sm" title="Zeigt absolute Abweichung">
+                  Absolut (|Abweichung|)
+                </button>
+              </div>
+              <span class="badge">Sekundengenauer Zeitverlauf</span>
+            </div>
+          </div>
+          <p class="help-text" style="margin-bottom:12px;">
+            Zeigt für jeden Teilnehmer die Entwicklung der Schätzungen über alle Soll-Zeiten. Klicke auf einen Teilnehmer in der Legende, um dessen Linie hervorzuheben. Die gestrichelte Nulllinie markiert die exakte Soll-Zeit.
+          </p>
+          <div id="line-chart-legend" class="line-chart-legend"></div>
+          <div id="line-chart-wrapper" class="line-chart-wrapper"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Kumulierte Gesamtabweichung im Vergleich</h2>
+            <span class="badge">Balkendiagramm inkl. Multiplikator</span>
           </div>
           <div id="chart-container" class="chart-container"></div>
         </div>

@@ -36,7 +36,8 @@ Die Applikation ersetzt und erweitert die historische Excel-Vorlage `Zeit_eintra
   - **Kein 24-Stunden-Überlauf:** Formatiert Dauern beliebig hoch als `HH:MM:SS` (z. B. `27:15:40`), ohne wie Excel bei 24h auf `00:00:00` zurückzuspringen.
 - **Vollständige Auswertung:**
   - Podium & Gesamtrangliste (sortiert nach `Daneben inkl. Multi`)
-  - Abweichungsverlauf-Diagramm (grafischer Vergleich aller Runden)
+  - **Interaktiver Liniengraph (Zeitachsen-Verlauf):** Zeigt die Entwicklung jedes Teilnehmers über alle Soll-Zeiten mit Umschaltung zwischen vorzeichenbehafteter Abweichung (Zu früh / Zu spät) und absoluter Abweichung sowie interaktiver Teilnehmer-Hervorhebung
+  - Kumuliertes Balkendiagramm der Gesamtabweichungen
   - Differenzen-Matrix (Soll-Zeiten $\times$ Teilnehmer mit Hervorhebung der besten Schätzung)
   - Teilnehmer-Detailblätter mit manueller Korrekturmöglichkeit
 - **JSON Import / Export & File System Access:**

@@ -106,6 +106,8 @@
   let modalAutoCloseTimer = null;
   let wakeLockSentinel = null;
   let liveBackupFileHandle = null;
+  let lineChartMode = "signed"; // "signed" | "abs"
+  let highlightedParticipantId = null;
   let lastSyncIso = null;
 
   // IndexedDB Promise Helper
@@ -911,6 +913,7 @@
     adminSummaryLine.textContent = `${summary.activeParticipants} aktive Teilnehmer | ${summary.totalTargets} Soll-Zeiten | ${summary.totalEstimationsSubmitted} von ${summary.totalEstimationsExpected} Schätzungen abgegeben`;
 
     renderPodiumAndRanking(ranking);
+    renderLineChart(participants, targets);
     renderComparisonChart(participants, targets);
     renderMatrixTable(matrix, participants);
     renderParticipantDetailsTab(participants, targets);
@@ -969,6 +972,385 @@
         select.dispatchEvent(new Event('change'));
       });
     });
+  }
+
+  
+  // 10 distinct vibrant colors for participant lines
+  const PARTICIPANT_COLORS = [
+    '#f59e0b', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6',
+    '#06b6d4', '#ef4444', '#84cc16', '#eab308', '#14b8a6'
+  ];
+
+  function getParticipantColor(idx) {
+    return PARTICIPANT_COLORS[idx % PARTICIPANT_COLORS.length];
+  }
+
+    function renderLineChart(participants, targets) {
+    const wrapper = document.getElementById('line-chart-wrapper');
+    const legendEl = document.getElementById('line-chart-legend');
+    if (!wrapper || !legendEl) return;
+
+    const activeList = participants.filter((p) => p.active || p.completedCount > 0);
+    if (activeList.length === 0 || targets.length === 0) {
+      wrapper.innerHTML = '<p class="help-text">Noch keine Daten für das Liniendiagramm vorhanden.</p>';
+      legendEl.innerHTML = '';
+      return;
+    }
+
+    // Sort activeList by ranking for legend consistency
+    const sorted = [...activeList].sort((a, b) => a.sumDiffSecWithMulti - b.sumDiffSecWithMulti);
+
+    // 1. Render Colored Interactive Legend Chips
+    let legendHtml = '';
+    sorted.forEach((p, idx) => {
+      const color = getParticipantColor(idx);
+      const isHighlighted = highlightedParticipantId === p.id;
+      const isDimmed = highlightedParticipantId !== null && !isHighlighted;
+
+      // Color badge with 18% background of participant line color and solid border
+      const chipBg = isHighlighted ? color : 'rgba(' + hexToRgb(color) + ', 0.16)';
+      const chipBorder = color;
+      const textColor = isHighlighted ? '#ffffff' : color;
+      const subTextColor = isHighlighted ? '#f3f4f6' : 'rgba(255,255,255,0.65)';
+
+      legendHtml += `
+        <button type="button" class="legend-chip ${isHighlighted ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}"
+          data-legend-p="${p.id}"
+          style="background:${chipBg}; border:1.5px solid ${chipBorder}; color:${textColor};"
+          title="${escapeHtml(p.name)} im Liniengraph fokussieren">
+          <span class="legend-chip-dot" style="background:${color}"></span>
+          <span style="font-weight:800;">${escapeHtml(p.name)}</span>
+          <span style="font-size:0.76rem; color:${subTextColor}; margin-left:3px;">${p.sumDiffWithMultiFormatted}</span>
+        </button>
+      `;
+    });
+    legendEl.innerHTML = legendHtml;
+
+    legendEl.querySelectorAll('[data-legend-p]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const pId = Number(chip.getAttribute('data-legend-p'));
+        highlightedParticipantId = (highlightedParticipantId === pId) ? null : pId;
+        renderLineChart(participants, targets);
+      });
+    });
+
+    // 2. Setup Dimensions (extended right margin for in-graph participant labels)
+    const svgWidth = 920;
+    const svgHeight = 390;
+    const padLeft = 70;
+    const padRight = 105; // Space for participant name badges at line ends
+    const padTop = 32;
+    const padBottom = 60;
+    const plotWidth = svgWidth - padLeft - padRight;
+    const plotHeight = svgHeight - padTop - padBottom;
+
+    // 3. Compute Value Bounds (in minutes)
+    let minMin = 0;
+    let maxMin = 0;
+
+    sorted.forEach((p) => {
+      p.rows.forEach((r) => {
+        if (r.completed) {
+          const valMin = lineChartMode === 'signed'
+            ? r.signedDiffSeconds / 60
+            : r.diffSeconds / 60;
+          if (valMin < minMin) minMin = valMin;
+          if (valMin > maxMin) maxMin = valMin;
+        }
+      });
+    });
+
+    if (minMin === 0 && maxMin === 0) {
+      maxMin = 60;
+      minMin = lineChartMode === 'signed' ? -60 : 0;
+    } else {
+      const span = Math.max(20, maxMin - minMin);
+      maxMin = Math.ceil(maxMin + span * 0.1);
+      if (lineChartMode === 'signed') {
+        minMin = Math.floor(minMin - span * 0.1);
+      } else {
+        minMin = 0;
+      }
+    }
+
+    if (lineChartMode === 'signed') {
+      const absMax = Math.max(Math.abs(minMin), Math.abs(maxMin));
+      minMin = -absMax;
+      maxMin = absMax;
+    }
+
+    const valToY = (val) => {
+      if (maxMin === minMin) return padTop + plotHeight / 2;
+      return padTop + plotHeight - ((val - minMin) / (maxMin - minMin)) * plotHeight;
+    };
+
+    const stepToX = (stepIndex) => {
+      if (targets.length <= 1) return padLeft + plotWidth / 2;
+      return padLeft + ((stepIndex - 1) / (targets.length - 1)) * plotWidth;
+    };
+
+    // 4. Build SVG Grid & Axes
+    let svgContent = '';
+
+    // Horizontal Grid Lines & Y-Axis Labels
+    const numYGrid = 6;
+    for (let i = 0; i <= numYGrid; i++) {
+      const gridVal = minMin + (i / numYGrid) * (maxMin - minMin);
+      const yPos = valToY(gridVal);
+      const isZero = Math.abs(gridVal) < 0.001;
+
+      svgContent += `
+        <line x1="${padLeft}" y1="${yPos}" x2="${padLeft + plotWidth}" y2="${yPos}"
+          stroke="${isZero ? '#10b981' : '#262d33'}"
+          stroke-width="${isZero ? 2 : 1}"
+          stroke-dasharray="${isZero ? '6,4' : '3,3'}" />
+        <text x="${padLeft - 10}" y="${yPos + 4}"
+          fill="${isZero ? '#34d399' : '#9ca3af'}"
+          font-size="11" font-family="monospace" text-anchor="end" font-weight="${isZero ? '800' : '500'}">
+          ${isZero ? '0 (Soll)' : (gridVal > 0 ? '+' : '') + Math.round(gridVal) + 'm'}
+        </text>
+      `;
+    }
+
+    // Vertical Target Lines & X-Axis Labels
+    targets.forEach((t) => {
+      const xPos = stepToX(t.stepIndex);
+      const dateLabel = formatDisplayDateTime(t.targetTime);
+      const shortTime = dateLabel.split(' ')[1] ? dateLabel.split(' ')[1].slice(0, 5) : '';
+      const shortDay = dateLabel.split(' ')[0] ? dateLabel.split(' ')[0].slice(0, 5) : '';
+
+      svgContent += `
+        <line x1="${xPos}" y1="${padTop}" x2="${xPos}" y2="${padTop + plotHeight}"
+          stroke="#262d33" stroke-width="1" />
+        <circle cx="${xPos}" cy="${padTop + plotHeight}" r="3" fill="#4b5563" />
+        <text x="${xPos}" y="${padTop + plotHeight + 18}"
+          fill="#f3f4f6" font-size="11" font-weight="700" text-anchor="middle">
+          #${t.stepIndex}
+        </text>
+        <text x="${xPos}" y="${padTop + plotHeight + 32}"
+          fill="#9ca3af" font-size="10" font-family="monospace" text-anchor="middle">
+          ${shortDay} ${shortTime}
+        </text>
+      `;
+    });
+
+    // 5. Calculate non-overlapping Y positions for line-end labels
+    const endLabels = [];
+    sorted.forEach((p, idx) => {
+      const color = getParticipantColor(idx);
+      const isHighlighted = highlightedParticipantId === p.id;
+      const isDimmed = highlightedParticipantId !== null && !isHighlighted;
+      const strokeWidth = isHighlighted ? 4 : 2.5;
+      const opacity = isDimmed ? 0.15 : (isHighlighted ? 1 : 0.88);
+
+      const points = [];
+      p.rows.forEach((r) => {
+        if (r.completed) {
+          const valMin = lineChartMode === 'signed'
+            ? r.signedDiffSeconds / 60
+            : r.diffSeconds / 60;
+          points.push({
+            x: stepToX(r.stepIndex),
+            y: valToY(valMin),
+            stepIndex: r.stepIndex,
+            targetLabel: r.targetLabel,
+            valMin,
+            diffFormatted: r.diffFormatted,
+            directionLabel: r.directionLabel,
+            signedDiffFormatted: r.signedDiffFormatted,
+            clock: r.estimatedClock
+          });
+        }
+      });
+
+      if (points.length > 0) {
+        const lastPt = points[points.length - 1];
+        endLabels.push({
+          participantId: p.id,
+          name: p.name,
+          color,
+          lastX: lastPt.x,
+          rawY: lastPt.y,
+          displayY: lastPt.y,
+          isHighlighted,
+          isDimmed
+        });
+      }
+
+      svgContent += `<g class="chart-series-group" data-series-p="${p.id}">`;
+
+      // Glow backdrop line when highlighted
+      if (isHighlighted && points.length > 1) {
+        let pathD = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) pathD += ` L ${points[i].x} ${points[i].y}`;
+        svgContent += `
+          <path d="${pathD}" fill="none" stroke="${color}" stroke-width="8" opacity="0.25" stroke-linecap="round" />
+        `;
+      }
+
+      // Main line
+      if (points.length > 1) {
+        let pathD = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+          pathD += ` L ${points[i].x} ${points[i].y}`;
+        }
+        svgContent += `
+          <path class="chart-line" d="${pathD}" fill="none" stroke="${color}" stroke-width="${strokeWidth}"
+            opacity="${opacity}" stroke-linecap="round" stroke-linejoin="round" />
+        `;
+      }
+
+      // Interactive Point Circles
+      points.forEach((pt) => {
+        svgContent += `
+          <circle class="chart-node-circle" cx="${pt.x}" cy="${pt.y}" r="${isHighlighted ? 6.5 : 4.5}"
+            fill="${color}" stroke="#0f1316" stroke-width="2" opacity="${opacity}"
+            style="cursor:pointer;"
+            data-pt-name="${escapeHtml(p.name)}"
+            data-pt-step="#${pt.stepIndex} (${escapeHtml(pt.targetLabel)})"
+            data-pt-diff="${escapeHtml(pt.signedDiffFormatted)}"
+            data-pt-clock="Ist: ${escapeHtml(pt.clock)}"
+            data-pt-dir="${escapeHtml(pt.directionLabel)}" />
+        `;
+      });
+
+      svgContent += `</g>`;
+    });
+
+    // 6. Draw End-of-Line Participant Badges inside the graph
+    // Sort labels vertically to prevent overlap
+    endLabels.sort((a, b) => a.rawY - b.rawY);
+    for (let i = 1; i < endLabels.length; i++) {
+      if (endLabels[i].displayY - endLabels[i - 1].displayY < 18) {
+        endLabels[i].displayY = endLabels[i - 1].displayY + 18;
+      }
+    }
+
+    endLabels.forEach((lbl) => {
+      const isHigh = lbl.isHighlighted;
+      const isDim = lbl.isDimmed;
+      const opacity = isDim ? 0.25 : 1;
+      const labelX = padLeft + plotWidth + 8;
+      const labelY = Math.min(padTop + plotHeight + 10, Math.max(padTop - 8, lbl.displayY));
+
+      svgContent += `
+        <g class="chart-series-group" data-series-p="${lbl.participantId}" opacity="${opacity}">
+          <line x1="${lbl.lastX}" y1="${lbl.rawY}" x2="${labelX}" y2="${labelY}"
+            stroke="${lbl.color}" stroke-width="1" stroke-dasharray="2,2" opacity="0.6" />
+          <rect x="${labelX + 2}" y="${labelY - 10}" width="88" height="20" rx="10"
+            fill="${isHigh ? lbl.color : '#161b20'}"
+            stroke="${lbl.color}" stroke-width="${isHigh ? 2 : 1.5}" />
+          <circle cx="${labelX + 11}" cy="${labelY}" r="4" fill="${isHigh ? '#fff' : lbl.color}" />
+          <text x="${labelX + 20}" y="${labelY + 4}"
+            fill="${isHigh ? '#ffffff' : lbl.color}"
+            font-size="11" font-weight="800">
+            ${escapeHtml(lbl.name)}
+          </text>
+        </g>
+      `;
+    });
+
+    // 7. Outer frame & Axis titles
+    svgContent += `
+      <rect x="${padLeft}" y="${padTop}" width="${plotWidth}" height="${plotHeight}"
+        fill="none" stroke="#2d353c" stroke-width="1" />
+      <text x="${padLeft}" y="${padTop - 12}" fill="#9ca3af" font-size="11" font-weight="600">
+        ${lineChartMode === 'signed' ? 'Abweichung: Zu früh (-) / Zu spät (+) in Minuten' : 'Absolute Abweichung in Minuten'}
+      </text>
+      <text x="${padLeft + plotWidth}" y="${padTop + plotHeight + 48}" fill="#9ca3af" font-size="11" text-anchor="end">
+        Soll-Zeiten (Chronologisch) →
+      </text>
+    `;
+
+    wrapper.innerHTML = `
+      <div style="position:relative;">
+        <svg class="line-chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
+          ${svgContent}
+        </svg>
+        <div id="chart-tooltip-box" class="chart-tooltip hidden"></div>
+      </div>
+    `;
+
+    // 8. Connect SVG element clicks for highlighting
+    const svgEl = wrapper.querySelector('.line-chart-svg');
+
+    svgEl.querySelectorAll('.chart-series-group').forEach((grp) => {
+      grp.addEventListener('click', () => {
+        const pId = Number(grp.getAttribute('data-series-p'));
+        highlightedParticipantId = (highlightedParticipantId === pId) ? null : pId;
+        renderLineChart(participants, targets);
+      });
+    });
+
+    // 9. Interactive Tooltips on Points
+    const tooltipEl = document.getElementById('chart-tooltip-box');
+
+    svgEl.querySelectorAll('circle[data-pt-name]').forEach((c) => {
+      c.addEventListener('mouseenter', () => {
+        const name = c.getAttribute('data-pt-name');
+        const step = c.getAttribute('data-pt-step');
+        const diff = c.getAttribute('data-pt-diff');
+        const clock = c.getAttribute('data-pt-clock');
+        const dir = c.getAttribute('data-pt-dir');
+        const color = c.getAttribute('fill');
+
+        tooltipEl.innerHTML = `
+          <div style="font-weight:800; font-size:0.95rem; color:${color};">${name}</div>
+          <div style="font-size:0.75rem; color:#9ca3af;">${step}</div>
+          <div class="mono" style="font-weight:700; margin-top:4px; font-size:0.9rem;">Abweichung: ${diff}</div>
+          <div style="font-size:0.75rem; color:#93c5fd; margin-top:2px;">${clock} | ${dir}</div>
+        `;
+
+        const rect = svgEl.getBoundingClientRect();
+        const cx = parseFloat(c.getAttribute('cx'));
+        const cy = parseFloat(c.getAttribute('cy'));
+        const scaleX = rect.width / svgWidth;
+        const scaleY = rect.height / svgHeight;
+
+        tooltipEl.style.left = (cx * scaleX) + 'px';
+        tooltipEl.style.top = (cy * scaleY) + 'px';
+        tooltipEl.classList.remove('hidden');
+      });
+
+      c.addEventListener('mouseleave', () => {
+        tooltipEl.classList.add('hidden');
+      });
+    });
+
+    // 10. Wire Toggle Buttons
+    const btnSigned = document.getElementById('btn-chart-mode-signed');
+    const btnAbs = document.getElementById('btn-chart-mode-abs');
+
+    if (btnSigned && !btnSigned.dataset.wired) {
+      btnSigned.dataset.wired = 'true';
+      btnSigned.addEventListener('click', () => {
+        lineChartMode = 'signed';
+        btnSigned.classList.add('active');
+        if (btnAbs) btnAbs.classList.remove('active');
+        const ev = computeEvaluation(state);
+        renderLineChart(ev.participants, ev.targets);
+      });
+    }
+
+    if (btnAbs && !btnAbs.dataset.wired) {
+      btnAbs.dataset.wired = 'true';
+      btnAbs.addEventListener('click', () => {
+        lineChartMode = 'abs';
+        btnAbs.classList.add('active');
+        if (btnSigned) btnSigned.classList.remove('active');
+        const ev = computeEvaluation(state);
+        renderLineChart(ev.participants, ev.targets);
+      });
+    }
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const num = parseInt(clean, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return r + ', ' + g + ', ' + b;
   }
 
   function renderComparisonChart(participants, targets) {
