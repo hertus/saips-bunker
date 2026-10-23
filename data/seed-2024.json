@@ -1,0 +1,85 @@
+{
+  "version": "1.0",
+  "settings": {
+    "eventTitle": "das saips BUNKERweekend",
+    "adminPassword": "Admin1234",
+    "classicMessages": true,
+    "lastManStandingEasterEgg": true,
+    "kioskHideCursor": false,
+    "maskPasswordInput": false
+  },
+  "targets": [
+    { "id": 1, "stepIndex": 1, "label": "1. Schätzung (Fr 12:00)", "targetTime": "2024-11-01T12:00:00", "multiplier": 1.0 },
+    { "id": 2, "stepIndex": 2, "label": "2. Schätzung (Fr 18:00)", "targetTime": "2024-11-01T18:00:00", "multiplier": 1.0 },
+    { "id": 3, "stepIndex": 3, "label": "3. Schätzung (Sa 12:00)", "targetTime": "2024-11-02T12:00:00", "multiplier": 1.0 },
+    { "id": 4, "stepIndex": 4, "label": "4. Schätzung (Sa 18:00)", "targetTime": "2024-11-02T18:00:00", "multiplier": 1.0 },
+    { "id": 5, "stepIndex": 5, "label": "5. Schätzung (So 12:00)", "targetTime": "2024-11-03T12:00:00", "multiplier": 1.0 }
+  ],
+  "participants": [
+    { "id": 1, "name": "Damian", "password": "Damian1572", "active": true },
+    { "id": 2, "name": "MartinBu", "password": "MartinBu2569", "active": true },
+    { "id": 3, "name": "Carlo", "password": "Carlo4329", "active": true },
+    { "id": 4, "name": "David", "password": "David6710", "active": true },
+    { "id": 5, "name": "Philipp", "password": "Philipp5422", "active": true },
+    { "id": 6, "name": "Toni", "password": "Toni5839", "active": true },
+    { "id": 7, "name": "Toby", "password": "Toby9348", "active": true },
+    { "id": 8, "name": "Lukas", "password": "Lukas3498", "active": true },
+    { "id": 9, "name": "Christian", "password": "Christian9381", "active": true },
+    { "id": 10, "name": "Zusatz", "password": "Zusatz1234", "active": false }
+  ],
+  "estimations": [
+    { "id": 1, "participantId": 1, "stepIndex": 1, "estimatedTime": "2024-11-01T11:44:20" },
+    { "id": 2, "participantId": 1, "stepIndex": 2, "estimatedTime": "2024-11-01T17:32:38" },
+    { "id": 3, "participantId": 1, "stepIndex": 3, "estimatedTime": "2024-11-02T10:46:48" },
+    { "id": 4, "participantId": 1, "stepIndex": 4, "estimatedTime": "2024-11-02T20:04:07" },
+    { "id": 5, "participantId": 1, "stepIndex": 5, "estimatedTime": "2024-11-03T13:53:55" },
+
+    { "id": 6, "participantId": 2, "stepIndex": 1, "estimatedTime": "2024-11-01T12:50:23" },
+    { "id": 7, "participantId": 2, "stepIndex": 2, "estimatedTime": "2024-11-01T17:27:17" },
+    { "id": 8, "participantId": 2, "stepIndex": 3, "estimatedTime": "2024-11-02T13:54:23" },
+    { "id": 9, "participantId": 2, "stepIndex": 4, "estimatedTime": "2024-11-02T18:56:24" },
+    { "id": 10, "participantId": 2, "stepIndex": 5, "estimatedTime": "2024-11-03T09:08:34" },
+
+    { "id": 11, "participantId": 3, "stepIndex": 1, "estimatedTime": "2024-11-01T13:49:52" },
+    { "id": 12, "participantId": 3, "stepIndex": 2, "estimatedTime": "2024-11-01T19:28:21" },
+    { "id": 13, "participantId": 3, "stepIndex": 3, "estimatedTime": "2024-11-02T13:11:14" },
+    { "id": 14, "participantId": 3, "stepIndex": 4, "estimatedTime": "2024-11-02T19:48:02" },
+    { "id": 15, "participantId": 3, "stepIndex": 5, "estimatedTime": "2024-11-03T12:56:00" },
+
+    { "id": 16, "participantId": 4, "stepIndex": 1, "estimatedTime": "2024-11-01T12:12:22" },
+    { "id": 17, "participantId": 4, "stepIndex": 2, "estimatedTime": "2024-11-01T16:22:21" },
+    { "id": 18, "participantId": 4, "stepIndex": 3, "estimatedTime": "2024-11-02T14:12:49" },
+    { "id": 19, "participantId": 4, "stepIndex": 4, "estimatedTime": "2024-11-02T19:40:55" },
+    { "id": 20, "participantId": 4, "stepIndex": 5, "estimatedTime": "2024-11-03T12:30:01" },
+
+    { "id": 21, "participantId": 5, "stepIndex": 1, "estimatedTime": "2024-11-01T12:54:51" },
+    { "id": 22, "participantId": 5, "stepIndex": 2, "estimatedTime": "2024-11-01T16:22:36" },
+    { "id": 23, "participantId": 5, "stepIndex": 3, "estimatedTime": "2024-11-02T14:10:54" },
+    { "id": 24, "participantId": 5, "stepIndex": 4, "estimatedTime": "2024-11-02T19:10:27" },
+    { "id": 25, "participantId": 5, "stepIndex": 5, "estimatedTime": "2024-11-03T13:01:55" },
+
+    { "id": 26, "participantId": 6, "stepIndex": 1, "estimatedTime": "2024-11-01T13:01:55" },
+    { "id": 27, "participantId": 6, "stepIndex": 2, "estimatedTime": "2024-11-01T17:21:20" },
+    { "id": 28, "participantId": 6, "stepIndex": 3, "estimatedTime": "2024-11-02T14:36:46" },
+    { "id": 29, "participantId": 6, "stepIndex": 4, "estimatedTime": "2024-11-02T17:25:32" },
+    { "id": 30, "participantId": 6, "stepIndex": 5, "estimatedTime": "2024-11-03T13:04:06" },
+
+    { "id": 31, "participantId": 7, "stepIndex": 1, "estimatedTime": "2024-11-01T13:31:20" },
+    { "id": 32, "participantId": 7, "stepIndex": 2, "estimatedTime": "2024-11-01T17:57:38" },
+    { "id": 33, "participantId": 7, "stepIndex": 3, "estimatedTime": "2024-11-02T13:59:15" },
+    { "id": 34, "participantId": 7, "stepIndex": 4, "estimatedTime": "2024-11-02T19:38:52" },
+    { "id": 35, "participantId": 7, "stepIndex": 5, "estimatedTime": "2024-11-03T12:21:52" },
+
+    { "id": 36, "participantId": 8, "stepIndex": 1, "estimatedTime": "2024-11-01T14:20:55" },
+    { "id": 37, "participantId": 8, "stepIndex": 2, "estimatedTime": "2024-11-01T19:04:24" },
+    { "id": 38, "participantId": 8, "stepIndex": 3, "estimatedTime": "2024-11-02T12:07:59" },
+    { "id": 39, "participantId": 8, "stepIndex": 4, "estimatedTime": "2024-11-02T18:26:51" },
+    { "id": 40, "participantId": 8, "stepIndex": 5, "estimatedTime": "2024-11-03T13:33:18" },
+
+    { "id": 41, "participantId": 9, "stepIndex": 1, "estimatedTime": "2024-11-01T13:01:40" },
+    { "id": 42, "participantId": 9, "stepIndex": 2, "estimatedTime": "2024-11-01T16:04:52" },
+    { "id": 43, "participantId": 9, "stepIndex": 3, "estimatedTime": "2024-11-02T12:38:12" },
+    { "id": 44, "participantId": 9, "stepIndex": 4, "estimatedTime": "2024-11-02T17:41:54" },
+    { "id": 45, "participantId": 9, "stepIndex": 5, "estimatedTime": "2024-11-03T12:36:41" }
+  ]
+}
